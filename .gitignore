@@ -8,15 +8,17 @@ tls/local/
 # Editors / IDEs
 .idea/
 .vscode/
-.claude/settings.local.json
+**/.claude/settings.local.json
+**/.claude/worktrees/
 *.swp
 *.swo
 *~
 
-# Env & secrets
+# Env & secrets — applies in any subdirectory
 .env
 .env.*
 !.env.example
+!.env.*.example
 
 # Logs
 *.log

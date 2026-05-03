@@ -9,7 +9,7 @@ help:
 	@echo "  make ps       Status of core services"
 	@echo
 	@echo "Optional:"
-	@echo "  make -C model-runtime up RUNTIME=ollama   # local model runtime"
+	@echo "  make -C llm-runtime up RUNTIME=ollama   # local model runtime"
 
 init:
 	@test -f ai-gateway/.env || cp ai-gateway/.env.example ai-gateway/.env

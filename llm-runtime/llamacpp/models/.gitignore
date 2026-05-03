@@ -1,0 +1,4 @@
+# Ignore model files — download them manually before starting the runtime.
+*.gguf
+*.bin
+*.safetensors

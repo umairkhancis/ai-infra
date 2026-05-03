@@ -1,0 +1,41 @@
+# macOS
+.DS_Store
+._*
+
+# Local TLS certs (machine-specific, regenerate via tls/Makefile)
+tls/local/
+
+# Editors / IDEs
+.idea/
+.vscode/
+.claude/settings.local.json
+*.swp
+*.swo
+*~
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Docker — local-only compose overrides
+docker-compose.override.yml
+compose.override.yml
+
+# Backup / merge artifacts
+*.bak
+*.orig
+*.rej
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

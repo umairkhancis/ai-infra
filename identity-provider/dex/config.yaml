@@ -1,0 +1,76 @@
+issuer: https://dex.umairkhancis.test
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+oauth2:
+  skipApprovalScreen: true
+
+staticClients:
+  - id: ai-gateway
+    name: AI Gateway
+    secret: dev-client-secret
+    redirectURIs:
+      - https://litellm.umairkhancis.test/sso/callback
+
+enablePasswordDB: true
+
+staticPasswords:
+  # password: "test"  (bcrypt hash) for all users
+  - email: "test@example.com"
+    hash: "$2a$10$DtZo7i8xHoPFezfOhTr/peHTo5l1oTi5fzvavNxfKca6k22MGrRvu"
+    username: "test"
+    userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
+
+  - email: "test1@example.com"
+    hash: "$2a$10$DtZo7i8xHoPFezfOhTr/peHTo5l1oTi5fzvavNxfKca6k22MGrRvu"
+    username: "test1"
+    userID: "74eda0d1-d638-49d9-8a20-c43802bb2cad"
+
+  - email: "test2@example.com"
+    hash: "$2a$10$DtZo7i8xHoPFezfOhTr/peHTo5l1oTi5fzvavNxfKca6k22MGrRvu"
+    username: "test2"
+    userID: "da004459-8a26-478c-aeec-bc97dc19fb23"
+
+  - email: "test3@example.com"
+    hash: "$2a$10$DtZo7i8xHoPFezfOhTr/peHTo5l1oTi5fzvavNxfKca6k22MGrRvu"
+    username: "test3"
+    userID: "6368b9ad-935e-4ec2-9f60-b2cd18d8823c"
+
+  - email: "test4@example.com"
+    hash: "$2a$10$DtZo7i8xHoPFezfOhTr/peHTo5l1oTi5fzvavNxfKca6k22MGrRvu"
+    username: "test4"
+    userID: "34547713-5b99-472a-89d1-351b32493263"
+
+  - email: "test5@example.com"
+    hash: "$2a$10$DtZo7i8xHoPFezfOhTr/peHTo5l1oTi5fzvavNxfKca6k22MGrRvu"
+    username: "test5"
+    userID: "f6c4a834-b6ac-4693-861b-7120ef563dee"
+
+  - email: "test6@example.com"
+    hash: "$2a$10$DtZo7i8xHoPFezfOhTr/peHTo5l1oTi5fzvavNxfKca6k22MGrRvu"
+    username: "test6"
+    userID: "b637da26-c0b1-45ae-b7fe-bf762b68de3e"
+
+  - email: "test7@example.com"
+    hash: "$2a$10$DtZo7i8xHoPFezfOhTr/peHTo5l1oTi5fzvavNxfKca6k22MGrRvu"
+    username: "test7"
+    userID: "7c29df36-907a-4bf2-9e65-7344cc2b511e"
+
+  - email: "test8@example.com"
+    hash: "$2a$10$DtZo7i8xHoPFezfOhTr/peHTo5l1oTi5fzvavNxfKca6k22MGrRvu"
+    username: "test8"
+    userID: "55800c76-aab7-4767-b8db-e7cc4ec1ef96"
+
+  - email: "test9@example.com"
+    hash: "$2a$10$DtZo7i8xHoPFezfOhTr/peHTo5l1oTi5fzvavNxfKca6k22MGrRvu"
+    username: "test9"
+    userID: "246bffcb-fc41-420f-99b0-66e7025948fe"
+
+  - email: "test10@example.com"
+    hash: "$2a$10$DtZo7i8xHoPFezfOhTr/peHTo5l1oTi5fzvavNxfKca6k22MGrRvu"
+    username: "test10"
+    userID: "47cc9315-fbd6-409c-b876-d2834531c9e3"

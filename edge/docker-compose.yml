@@ -1,0 +1,28 @@
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    container_name: infra-caddy
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - infra-certs:/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      infra-net:
+        aliases:
+          - litellm.umairkhancis.test
+          - dex.umairkhancis.test
+
+networks:
+  infra-net:
+    external: true
+
+volumes:
+  caddy_data:
+  caddy_config:
+  infra-certs:
+    external: true

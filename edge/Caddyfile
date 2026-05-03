@@ -1,0 +1,13 @@
+{
+	auto_https off
+}
+
+litellm.umairkhancis.test {
+	tls /certs/gateway.pem /certs/gateway-key.pem
+	reverse_proxy litellm:4000
+}
+
+dex.umairkhancis.test {
+	tls /certs/gateway.pem /certs/gateway-key.pem
+	reverse_proxy dex:5556
+}

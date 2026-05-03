@@ -108,7 +108,7 @@ To swap runtimes, update the `local models` block in `ai-gateway/config.yaml` an
 
 ## On another machine
 
-The hostnames (`litellm.umairkhancis.test`, `dex.umairkhancis.test`) are fake `.test` TLDs — they resolve via `/etc/hosts` only and work on any machine. The TLS certs are mkcert-issued by your local CA, which is machine-specific; `tls/Makefile` regenerates them from your friend's local CA without any code changes.
+The hostnames (`litellm.umairkhancis.test`, `dex.umairkhancis.test`) are fake `.test` TLDs — they resolve via `/etc/hosts` only and work on any machine. The TLS certs are mkcert-issued by your local CA, which is machine-specific; `tls/Makefile` regenerates them from your local CA without any code changes.
 
 ## Troubleshooting
 

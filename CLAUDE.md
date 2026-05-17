@@ -11,18 +11,24 @@ Local AI infrastructure stack — a Caddy edge proxy terminating TLS for an OIDC
 All orchestration is via Make. Each subproject has a standalone `make up` with precondition checks; the root Makefile chains them in dependency order.
 
 ```bash
-# First-time setup on a fresh machine
-make init             # cp ai-gateway/.env.example -> ai-gateway/.env (edit secrets)
-make up               # certs + identity-provider + ai-gateway + edge
-                      # (prompts once for sudo to write /etc/hosts; non-interactive after)
+# First-time setup on a fresh machine — single command
+make up               # auto-generates ai-gateway/.env (random LITELLM_MASTER_KEY +
+                      # POSTGRES_PASSWORD, prompts for ANTHROPIC_API_KEY); installs
+                      # mkcert via brew if missing on macOS; explains and then
+                      # edits /etc/hosts (one sudo prompt); generates certs;
+                      # seeds infra-certs; starts tls + identity-provider +
+                      # ai-gateway + edge.
 
 make down             # stop services (keeps volumes, network, certs)
 make clean            # tear down everything: services + volumes + infra-net + certs
 make ps               # status across subprojects
+make init             # regenerate .env (no-op if it already exists)
 
 ./smoke-test.sh       # 19 end-to-end checks: prerequisites, container health,
                       # volume mounts, host->Caddy HTTPS, container->container HTTPS
 ```
+
+`make up` is the only command a first-time user needs. The two interactive moments — Anthropic key prompt (during `init`) and sudo prompt for `/etc/hosts` (during `tls/up`, with explanation block printed first) — are unavoidable; everything else is hands-off. `mkcert -install` may also pop a system dialog the first time it adds the local CA to the trust store.
 
 A subproject can be operated standalone:
 

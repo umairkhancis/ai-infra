@@ -19,13 +19,16 @@ client ──► https://litellm.umairkhancis.test ──► edge (Caddy)  ─�
 git clone <repo-url> ai-infra
 cd ai-infra
 
-make init                       # creates ai-gateway/.env from example
-$EDITOR ai-gateway/.env         # fill in secrets (see "Secrets" below)
-
-make up                         # one sudo prompt for /etc/hosts; everything else hands-off
+make up
 ```
 
-`make up` provisions the shared Docker network and TLS volume, generates certs via `mkcert`, maps hostnames in `/etc/hosts`, then starts the four core services in dependency order.
+That's it. `make up` does everything from a fresh clone:
+
+1. Generates `ai-gateway/.env` with random `LITELLM_MASTER_KEY` and `POSTGRES_PASSWORD`; the OIDC/Dex/LiteLLM values are pre-wired (no manual editing).
+2. Prompts once for an Anthropic API key (Enter to skip — the stack still starts; Anthropic-routed `/v1/*` calls will return an auth error until you set one).
+3. Installs `mkcert` via Homebrew if missing (macOS only).
+4. Explains the two local system changes it's about to make (`/etc/hosts` entries + local CA install), then prompts once for sudo to edit `/etc/hosts`.
+5. Generates TLS certs, seeds the shared Docker volume, and starts the four core services in dependency order.
 
 When it finishes:
 
@@ -43,21 +46,23 @@ Runs 19 checks: prerequisites, container health, volume mounts, host→Caddy HTT
 
 ## Secrets (`ai-gateway/.env`)
 
-Generated from `ai-gateway/.env.example`. Required values:
+`make up` generates this file automatically from `ai-gateway/.env.example` on a fresh clone. You only ever need to touch it to add provider credentials.
 
-| Variable | How to get it |
-|---|---|
-| `LITELLM_MASTER_KEY` | `openssl rand -hex 32` then prefix with `sk-` |
-| `POSTGRES_PASSWORD` | `openssl rand -hex 24` |
-| `ANTHROPIC_API_KEY` | from console.anthropic.com |
-| `PROXY_BASE_URL` | `https://litellm.umairkhancis.test` |
-| `GENERIC_CLIENT_ID` | `ai-gateway` (must match Dex client id) |
-| `GENERIC_CLIENT_SECRET` | `dev-client-secret` (matches Dex static client) |
-| `GENERIC_AUTHORIZATION_ENDPOINT` | `https://dex.umairkhancis.test/auth` |
-| `GENERIC_TOKEN_ENDPOINT` | `https://dex.umairkhancis.test/token` |
-| `GENERIC_USERINFO_ENDPOINT` | `https://dex.umairkhancis.test/userinfo` |
+| Variable | Set by | How |
+|---|---|---|
+| `LITELLM_MASTER_KEY` | `make init` | random `sk-$(openssl rand -hex 32)` |
+| `POSTGRES_PASSWORD` | `make init` | random `openssl rand -hex 24` |
+| `ANTHROPIC_API_KEY` | `make init` (interactive prompt) | paste yours, or Enter to skip |
+| `PROXY_BASE_URL`, `GENERIC_*` | `.env.example` defaults | wired for local Dex; no edits needed |
 
-Other model providers (`OPENAI_API_KEY`, `AZURE_API_KEY`, …) are commented in the example — uncomment what you need and add the corresponding `model_list` entries to `ai-gateway/config.yaml`.
+If you skipped the Anthropic key at setup time, add it later:
+
+```bash
+echo 'ANTHROPIC_API_KEY=sk-ant-...' >> ai-gateway/.env  # or edit the existing line
+make -C ai-gateway down && make -C ai-gateway up
+```
+
+Other providers (`OPENAI_API_KEY`, `AZURE_API_KEY`, …) are commented in the example — uncomment what you need and add the matching `model_list` entries to `ai-gateway/config.yaml`.
 
 ## Repository layout
 

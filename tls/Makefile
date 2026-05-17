@@ -96,5 +96,6 @@ hosts:
 	fi
 
 clean:
+	-docker compose down
 	rm -f $(LOCAL_DIR)/*.pem
 	-docker volume rm infra-certs

@@ -77,8 +77,13 @@ $(PEMS):
 	@mkdir -p $(LOCAL_DIR)
 	@mkcert -install
 	@cd $(LOCAL_DIR) && mkcert -cert-file gateway.pem -key-file gateway-key.pem $(HOSTS)
-	@cp "$$(mkcert -CAROOT)/rootCA.pem" $(LOCAL_DIR)/cacert.pem
 	@cp "$$(mkcert -CAROOT)/rootCA.pem" $(LOCAL_DIR)/rootCA.pem
+	@# cacert.pem = mkcert root + public CAs. Lets containers verify both
+	@# internal hostnames (signed by mkcert) and public APIs (Anthropic, OpenAI).
+	@cp "$$(mkcert -CAROOT)/rootCA.pem" $(LOCAL_DIR)/cacert.pem
+	@if   [ -f /etc/ssl/cert.pem ];                then cat /etc/ssl/cert.pem               >> $(LOCAL_DIR)/cacert.pem; \
+	 elif [ -f /etc/ssl/certs/ca-certificates.crt ]; then cat /etc/ssl/certs/ca-certificates.crt >> $(LOCAL_DIR)/cacert.pem; \
+	 else echo "WARNING: no system CA bundle found; cacert.pem will only trust mkcert"; fi
 	@chmod 600 $(LOCAL_DIR)/gateway-key.pem
 	@chmod 644 $(LOCAL_DIR)/gateway.pem $(LOCAL_DIR)/cacert.pem $(LOCAL_DIR)/rootCA.pem
 

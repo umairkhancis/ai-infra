@@ -1,4 +1,4 @@
-issuer: https://dex.umairkhancis.test
+issuer: http://dex.localhost:5556
 
 storage:
   type: memory
@@ -14,7 +14,7 @@ staticClients:
     name: AI Gateway
     secret: dev-client-secret
     redirectURIs:
-      - https://litellm.umairkhancis.test/sso/callback
+      - http://localhost:4000/sso/callback
 
 enablePasswordDB: true
 

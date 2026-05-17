@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Smoke test for the ai-infra workspace.
-# Verifies prerequisites, container health, and end-to-end request paths.
-# Run from anywhere: bash smoke-test.sh
+# Smoke test for ai-infra.
+# Verifies the full default stack (postgres + redis + dex + litellm) is up
+# and reachable at http://localhost:4000.
 
 set -uo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 pass=0
 fail=0
@@ -26,67 +28,88 @@ section() {
   printf "\n== %s ==\n" "$1"
 }
 
+container_healthy() {
+  local svc=$1
+  local cid
+  cid=$(docker compose ps -q "$svc" 2>/dev/null)
+  [ -n "$cid" ] || return 1
+  local status
+  status=$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo none)
+  [ "$status" = "healthy" ]
+}
+
+container_running() {
+  local svc=$1
+  local cid
+  cid=$(docker compose ps -q "$svc" 2>/dev/null)
+  [ -n "$cid" ] || return 1
+  local status
+  status=$(docker inspect --format '{{.State.Status}}' "$cid" 2>/dev/null || echo none)
+  [ "$status" = "running" ]
+}
+
 # -------------------- Prerequisites --------------------
 section "Prerequisites"
 
 run "docker daemon reachable" \
   docker info
 
-run "network 'infra-net' exists  (one-time: docker network create infra-net)" \
-  docker network inspect infra-net
+# -------------------- Services --------------------
+section "Services"
 
-run "volume 'infra-certs' exists  (one-time: docker volume create infra-certs)" \
-  docker volume inspect infra-certs
+run "postgres healthy" container_healthy postgres
+run "redis healthy"    container_healthy redis
+run "dex running"      container_running dex
+run "litellm healthy"  container_healthy litellm
 
-run "volume 'infra-certs' contains gateway.pem  (run: cd tls && docker compose up)" \
-  docker run --rm -v infra-certs:/c alpine:3.20 test -f /c/gateway.pem
+# -------------------- LiteLLM HTTP --------------------
+section "LiteLLM HTTP (localhost:4000)"
 
-run "volume 'infra-certs' contains gateway-key.pem" \
-  docker run --rm -v infra-certs:/c alpine:3.20 test -f /c/gateway-key.pem
+run "GET /health/liveliness -> 200" \
+  bash -c "curl -fsS -o /dev/null http://localhost:4000/health/liveliness"
 
-run "volume 'infra-certs' contains cacert.pem" \
-  docker run --rm -v infra-certs:/c alpine:3.20 test -f /c/cacert.pem
+run "GET /health/readiness -> 200" \
+  bash -c "curl -fsS -o /dev/null http://localhost:4000/health/readiness"
 
-run "/etc/hosts maps litellm.umairkhancis.test -> 127.0.0.1" \
-  grep -qE "^127\.0\.0\.1.*litellm\.umairkhancis\.test" /etc/hosts
+run "GET /ui (admin UI reachable) -> 200" \
+  bash -c "curl -fsS -o /dev/null http://localhost:4000/ui"
 
-run "/etc/hosts maps dex.umairkhancis.test -> 127.0.0.1" \
-  grep -qE "^127\.0\.0\.1.*dex\.umairkhancis\.test" /etc/hosts
+# -------------------- Dex OIDC discovery --------------------
+section "Dex OIDC (localhost:5556)"
 
-# -------------------- Container health --------------------
-section "Container health"
+run "GET /.well-known/openid-configuration -> 200" \
+  bash -c "curl -fsS -o /dev/null http://127.0.0.1:5556/.well-known/openid-configuration"
 
-for name in infra-caddy identity-provider ai-gateway litellm-postgres litellm-redis; do
-  run "container '$name' is running" \
-    bash -c "docker ps --format '{{.Names}}' | grep -qx '$name'"
-done
+run "issuer claim is http://dex.localhost:5556" \
+  bash -c "curl -fsS http://127.0.0.1:5556/.well-known/openid-configuration | grep -qE '\"issuer\":[[:space:]]*\"http://dex.localhost:5556\"'"
 
-# -------------------- Mounts --------------------
-section "Named-volume mounts"
+# -------------------- LiteLLM -> Dex reachability --------------------
+# The trick: extra_hosts maps dex.localhost → host-gateway inside the litellm
+# container, so back-channel OIDC token/userinfo calls reach Dex at the same
+# URL the browser uses. If this breaks, OIDC sign-in will fail at the token
+# exchange step.
+section "LiteLLM container can reach Dex"
 
-run "Caddy container sees /certs/gateway.pem from infra-certs" \
-  docker exec infra-caddy sh -c 'test -f /certs/gateway.pem'
+run "litellm container resolves dex.localhost to host-gateway" \
+  bash -c "docker compose exec -T litellm python -c \"import socket; socket.gethostbyname('dex.localhost')\""
 
-run "LiteLLM container sees /certs/cacert.pem from infra-certs" \
-  docker exec ai-gateway sh -c 'test -f /certs/cacert.pem'
+run "litellm -> http://dex.localhost:5556/.well-known/openid-configuration -> 200" \
+  bash -c "docker compose exec -T litellm python -c \"import urllib.request; urllib.request.urlopen('http://dex.localhost:5556/.well-known/openid-configuration', timeout=5).read()\""
 
-# -------------------- Functional: host -> Caddy --------------------
-section "Host -> Caddy (HTTPS via /etc/hosts)"
+# -------------------- Virtual key creation --------------------
+section "Virtual key creation"
 
-run "GET https://litellm.umairkhancis.test/health/liveliness -> 200" \
-  bash -c "curl -fsS -o /dev/null https://litellm.umairkhancis.test/health/liveliness"
+if [ -f "$REPO_ROOT/.env" ]; then
+  MASTER_KEY="$(grep -E '^LITELLM_MASTER_KEY=' "$REPO_ROOT/.env" | head -n1 | cut -d= -f2-)"
+else
+  MASTER_KEY="sk-CHANGE-ME"
+fi
 
-run "GET https://dex.umairkhancis.test/.well-known/openid-configuration -> 200" \
-  bash -c "curl -fsS -o /dev/null https://dex.umairkhancis.test/.well-known/openid-configuration"
-
-# -------------------- Functional: server-to-server inside infra-net --------------------
-section "Container -> Caddy (HTTPS via Docker DNS alias on infra-net)"
-
-run "LiteLLM resolves dex.umairkhancis.test via Docker DNS (alias on infra-net)" \
-  docker exec ai-gateway python -c "import socket; socket.gethostbyname('dex.umairkhancis.test')"
-
-run "LiteLLM -> Dex HTTPS call validates against /certs/cacert.pem trust bundle" \
-  docker exec ai-gateway python -c "import urllib.request; urllib.request.urlopen('https://dex.umairkhancis.test/.well-known/openid-configuration', timeout=5).read()"
+run "POST /key/generate with master key -> JSON with 'key'" \
+  bash -c "curl -fsS -X POST http://localhost:4000/key/generate \
+    -H 'Authorization: Bearer $MASTER_KEY' \
+    -H 'Content-Type: application/json' \
+    -d '{\"models\":[\"claude-haiku-4-5\"]}' | grep -q '\"key\"'"
 
 # -------------------- Summary --------------------
 section "Summary"

@@ -2,9 +2,6 @@
 .DS_Store
 ._*
 
-# Local TLS certs (machine-specific, regenerate via tls/Makefile)
-tls/local/
-
 # Editors / IDEs
 .idea/
 .vscode/

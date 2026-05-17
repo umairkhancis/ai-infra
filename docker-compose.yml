@@ -1,0 +1,89 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-litellm}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm -d litellm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # OIDC issuer for admin-UI sign-in. Browsers resolve `dex.localhost` to
+  # loopback natively (RFC 6761), and the litellm container reaches the same
+  # URL via `extra_hosts: dex.localhost:host-gateway` below — so the JWT `iss`
+  # claim matches in both directions without any /etc/hosts edits.
+  dex:
+    image: ghcr.io/dexidp/dex:v2.39.1
+    restart: unless-stopped
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    ports:
+      - "5556:5556"
+    volumes:
+      - ./config/dex.yaml:/etc/dex/config.yaml:ro
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    restart: unless-stopped
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--host", "0.0.0.0"]
+    ports:
+      - "4000:4000"
+    environment:
+      # All values use ${VAR:-default} — override any of them by setting the
+      # var in .env (auto-loaded by docker compose from the project root).
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-CHANGE-ME}
+      DATABASE_URL: postgresql://litellm:${POSTGRES_PASSWORD:-litellm}@postgres:5432/litellm
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      STORE_MODEL_IN_DB: "True"
+      # Provider credentials (blank by default; set in .env to enable).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # OIDC — wired for the bundled Dex. Override these in .env to swap in
+      # a real IdP (Okta/Google/Azure/Keycloak); the IdP's registered redirect
+      # URI must match PROXY_BASE_URL + /sso/callback.
+      PROXY_BASE_URL: ${PROXY_BASE_URL:-http://localhost:4000}
+      GENERIC_CLIENT_ID: ${GENERIC_CLIENT_ID:-ai-gateway}
+      GENERIC_CLIENT_SECRET: ${GENERIC_CLIENT_SECRET:-dev-client-secret}
+      GENERIC_AUTHORIZATION_ENDPOINT: ${GENERIC_AUTHORIZATION_ENDPOINT:-http://dex.localhost:5556/auth}
+      GENERIC_TOKEN_ENDPOINT: ${GENERIC_TOKEN_ENDPOINT:-http://dex.localhost:5556/token}
+      GENERIC_USERINFO_ENDPOINT: ${GENERIC_USERINFO_ENDPOINT:-http://dex.localhost:5556/userinfo}
+    volumes:
+      - ./config/litellm.yaml:/app/config.yaml:ro
+    extra_hosts:
+      - "dex.localhost:host-gateway"
+      - "model-runner.docker.internal:host-gateway"
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      dex:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:4000/health/liveliness').status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  postgres_data:
+  redis_data:

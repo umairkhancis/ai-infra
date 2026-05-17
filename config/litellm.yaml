@@ -32,7 +32,7 @@ model_list:
       api_key: os.environ/OPENAI_API_KEY
 
   # ── Local models — active runtime: DMR ────────────────────────────────────
-  # To swap runtimes see: SWAP_RUNTIME_LAYER.md
+  # To swap runtimes see: docs/swap-runtime.md
   - model_name: llama3.2
     litellm_params:
       model: openai/docker.io/ai/llama3.2:latest
